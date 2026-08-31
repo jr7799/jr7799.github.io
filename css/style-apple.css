@@ -1,0 +1,545 @@
+@charset "UTF-8";
+
+/* ============================================================
+   ALTERNATE THEME — "Apple"
+   A drop-in replacement for style.css. Same class hooks, same
+   markup, same JS contracts (.slide / .is-active, .bubble).
+   Swap by changing the stylesheet href in the HTML.
+
+   Light by default, dark when the OS asks for it.
+   ============================================================ */
+
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+    color-scheme: light dark;
+
+    /* Surfaces — page, card, raised card, hairline */
+    --clr-bg:          #f5f5f7;   /* Apple's off-white; pure white feels clinical */
+    --clr-surface:     #ffffff;
+    --clr-surface-hi:  #f0f0f2;
+    --clr-border:      rgb(0 0 0 / 0.10);
+
+    /* Brand */
+    --clr-accent:      #0071e3;
+    --clr-accent-soft: color-mix(in oklab, var(--clr-accent), white 18%);
+    --clr-accent-deep: color-mix(in oklab, var(--clr-accent), black 25%);
+
+    /* Text */
+    --clr-text:        #1d1d1f;
+    --clr-text-muted:  #6e6e73;
+
+    --clr-icon:        #424245;
+    --clr-icon-hover:  var(--clr-accent);
+
+    /* Shape & rhythm */
+    --icon-size: 2.75rem;
+    --icon-gap:  0.6rem;
+    --gap:       1.5rem;
+    --radius:    18px;   /* generous, Apple-ish corner */
+    --radius-sm: 10px;
+
+    /* Motion & depth — shadows are stacked and low-contrast rather
+       than one heavy drop, which is what keeps them from muddying. */
+    --shadow:
+        0 1px 2px rgb(0 0 0 / 0.04),
+        0 8px 24px -12px rgb(0 0 0 / 0.14);
+    --shadow-lift:
+        0 2px 4px rgb(0 0 0 / 0.05),
+        0 18px 40px -16px rgb(0 0 0 / 0.24);
+
+    --ease:  cubic-bezier(0.4, 0, 0.2, 1);   /* calmer than an overshoot curve */
+    --speed: 320ms;
+    --fade:  900ms;   /* slideshow crossfade — must match main.js timing */
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --clr-bg:          #000000;
+        --clr-surface:     #1c1c1e;
+        --clr-surface-hi:  #2c2c2e;
+        --clr-border:      rgb(255 255 255 / 0.12);
+
+        --clr-accent:      #0a84ff;
+        --clr-accent-soft: color-mix(in oklab, var(--clr-accent), white 14%);
+
+        --clr-text:        #f5f5f7;
+        --clr-text-muted:  #98989d;
+
+        --clr-icon:        #d1d1d6;
+
+        --shadow:
+            0 1px 2px rgb(0 0 0 / 0.5),
+            0 8px 24px -12px rgb(0 0 0 / 0.7);
+        --shadow-lift:
+            0 2px 4px rgb(0 0 0 / 0.5),
+            0 18px 40px -16px rgb(0 0 0 / 0.85);
+    }
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    height: 100dvh;
+    margin: 0;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    overflow: hidden;
+
+    color: var(--clr-text);
+
+    /* SF Pro when it's there, the platform UI face otherwise. */
+    font-family:
+        -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+        "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+
+    /* One barely-there wash instead of the two coloured light sources.
+       The restraint is the point. */
+    background:
+        radial-gradient(1200px 700px at 50% -20%,
+            color-mix(in oklab, var(--clr-accent), transparent 92%), transparent 70%),
+        var(--clr-bg);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+:focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--clr-accent), transparent 45%);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   BACKGROUND BUBBLES
+   Positioned by js/bubbles.js, which also sets inline width,
+   height and opacity. Decorative only.
+   ============================================================ */
+.bubbles {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.bubble {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    will-change: transform;
+
+    /* On a light page a white-highlight bubble is invisible, so the
+       body carries a faint accent tint and the highlight sits on top
+       of that rather than on the background. */
+    background:
+        radial-gradient(circle at 30% 26%,
+            rgb(255 255 255 / 0.95) 0%,
+            rgb(255 255 255 / 0.35) 26%,
+            transparent 54%),
+        radial-gradient(circle at 50% 55%,
+            color-mix(in oklab, var(--clr-accent), transparent 86%) 0%,
+            color-mix(in oklab, var(--clr-accent), transparent 96%) 72%);
+
+    border: 1px solid color-mix(in oklab, var(--clr-accent), transparent 84%);
+    box-shadow:
+        inset 0 -8px 20px rgb(255 255 255 / 0.45),
+        0 8px 22px -10px color-mix(in oklab, var(--clr-accent), transparent 72%);
+}
+
+@media (prefers-color-scheme: dark) {
+    .bubble {
+        background:
+            radial-gradient(circle at 30% 26%,
+                rgb(255 255 255 / 0.40) 0%,
+                rgb(255 255 255 / 0.08) 28%,
+                transparent 56%),
+            radial-gradient(circle at 60% 70%,
+                color-mix(in oklab, var(--clr-accent), transparent 78%) 0%,
+                transparent 55%);
+        border-color: rgb(255 255 255 / 0.14);
+        box-shadow:
+            inset 0 0 18px rgb(255 255 255 / 0.06),
+            0 0 28px color-mix(in oklab, var(--clr-accent), transparent 86%);
+    }
+}
+
+/* Keep real content above the bubble field */
+main,
+footer {
+    position: relative;
+    z-index: 1;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+main {
+    width: min(1600px, 100% - 3rem);
+    margin-inline: auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-block-end: var(--gap);
+
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    row-gap: clamp(1.25rem, 4vh, 3rem);
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--clr-border) transparent;
+}
+
+header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--gap);
+    padding-block: clamp(1.5rem, 5vh, 3rem);
+}
+
+/* Solid, tight and heavy — no gradient fill. Apple sets display type
+   large with negative tracking and lets the weight do the work. */
+h1 {
+    margin: 0;
+    font-size: clamp(1.6rem, 3.6vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.08;
+    color: var(--clr-text);
+}
+
+/* ============================================================
+   SOCIAL / ACTION ICONS
+   ============================================================ */
+.icons {
+    display: flex;
+    gap: var(--icon-gap);
+    font-size: 1.1rem;
+}
+
+.icons a {
+    display: grid;
+    place-items: center;
+    width: var(--icon-size);
+    aspect-ratio: 1;
+
+    border: 1px solid var(--clr-border);
+    border-radius: 50%;
+    background: color-mix(in oklab, var(--clr-surface), transparent 30%);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    color: var(--clr-icon);
+    text-decoration: none;
+
+    transition:
+        color        var(--speed) var(--ease),
+        border-color var(--speed) var(--ease),
+        background   var(--speed) var(--ease),
+        box-shadow   var(--speed) var(--ease),
+        transform    var(--speed) var(--ease);
+}
+
+/* Scale, not a jump. Small enough to feel like a response rather
+   than an animation. */
+.icons a:hover,
+.icons a:focus-visible {
+    color: var(--clr-icon-hover);
+    border-color: color-mix(in oklab, var(--clr-accent), transparent 55%);
+    background: var(--clr-surface);
+    box-shadow: var(--shadow);
+    transform: scale(1.06);
+}
+
+.icons a:active {
+    transform: scale(0.97);
+    transition-duration: 80ms;
+}
+
+/* ============================================================
+   HERO IMAGE
+   ============================================================ */
+.hero {
+    align-self: center;
+    justify-self: center;
+    width: min(820px, 100%);
+    margin: 0 0 clamp(1rem, 4vh, 2.5rem);
+
+    display: grid;
+    overflow: hidden;
+    isolation: isolate;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius);
+    background: var(--clr-surface);
+    box-shadow: var(--shadow);
+
+    animation: rise 620ms var(--ease) backwards;
+}
+
+/* Slides share one grid cell so they stack and crossfade in place. */
+.hero .slide {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    background: var(--clr-surface);
+
+    opacity: 0;
+    z-index: 0;
+    pointer-events: none;
+
+    /* Leaving slide holds full opacity underneath, then cuts once the
+       incoming one has covered it — avoids a dip mid-crossfade. */
+    transition: opacity 0s var(--fade);
+}
+
+.hero .slide.is-active {
+    opacity: 1;
+    z-index: 1;
+    pointer-events: auto;
+    transition: opacity var(--fade) var(--ease);
+}
+
+.hero img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 48dvh;
+    object-fit: cover;
+}
+
+.hero figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1.1rem 1.4rem 1.3rem;
+
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+}
+
+.hero figcaption span {
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;   /* sentence case reads calmer than caps */
+    color: var(--clr-text-muted);
+}
+
+/* ============================================================
+   STACKED PAGES  (about + each project page)
+   ============================================================ */
+.page-stack main {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1.25rem, 4vh, 3rem);
+}
+
+.page-stack .hero {
+    margin-block: auto;
+}
+
+.icons-center {
+    justify-content: center;
+}
+
+/* Equal 1fr columns put the column boundary at the exact middle of the
+   page, so the GAP is centred rather than the icons — the two groups
+   can differ in width and the centre line still holds. */
+.icon-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(2rem, 8vw, 6rem);
+    align-items: center;
+}
+
+.icon-pair > :first-child { justify-self: end; }
+
+/* Offset the right group by half a button pitch so its buttons fall
+   between the rhythm of the group opposite. */
+.icon-pair > :last-child {
+    justify-self: start;
+    transform: translateX(calc((var(--icon-size) + var(--icon-gap)) / 2));
+}
+
+@media (width < 560px) {
+    .icon-pair {
+        grid-template-columns: 1fr;
+        row-gap: 1rem;
+    }
+
+    .icon-pair > :first-child,
+    .icon-pair > :last-child {
+        justify-self: center;
+        transform: none;
+    }
+}
+
+.about-intro {
+    max-width: 62ch;
+    margin: 0 auto;
+    text-align: center;
+    font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: -0.015em;
+    color: var(--clr-text-muted);
+}
+
+/* ============================================================
+   PROJECT GRID
+   ============================================================ */
+#PORTFOLIO_ITEMS {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--gap);
+}
+
+@media (width < 1000px) {
+    #PORTFOLIO_ITEMS { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (width < 640px) {
+    #PORTFOLIO_ITEMS { grid-template-columns: repeat(2, 1fr); }
+}
+
+.project {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    isolation: isolate;
+
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius);
+    background: var(--clr-surface);
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    color: var(--clr-text);
+
+    transition:
+        transform  var(--speed) var(--ease),
+        box-shadow var(--speed) var(--ease);
+
+    animation: rise 620ms var(--ease) backwards;
+}
+
+/* Lift and deepen the shadow; the border stays neutral. Colouring the
+   edge on hover is the thing that reads as "web template". */
+.project:hover,
+.project:focus-visible {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lift);
+}
+
+/* Full colour at rest — screenshots are the product here, so they
+   aren't dimmed and then "rewarded" on hover. */
+.project img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 42dvh;
+    object-fit: cover;
+    transition: transform 700ms var(--ease);
+}
+
+.project:hover img,
+.project:focus-visible img {
+    transform: scale(1.04);
+}
+
+.project h2 {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0.9rem 1rem 1.05rem;
+
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+}
+
+.project h2 span {
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--clr-text-muted);
+}
+
+/* Staggered entrance */
+@keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.project:nth-child(1) { animation-delay:  60ms; }
+.project:nth-child(2) { animation-delay: 120ms; }
+.project:nth-child(3) { animation-delay: 180ms; }
+.project:nth-child(4) { animation-delay: 240ms; }
+.project:nth-child(5) { animation-delay: 300ms; }
+.project:nth-child(6) { animation-delay: 360ms; }
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.25rem;
+    margin-block-start: var(--gap);
+    border-top: 1px solid var(--clr-border);
+}
+
+.copyright {
+    margin: 0;
+    font-size: 0.78rem;
+    letter-spacing: 0;
+    color: var(--clr-text-muted);
+}
+
+/* ============================================================
+   NARROW SCREENS
+   The fixed-viewport shell only makes sense when there's room for
+   it. Below this, let the page scroll normally.
+   ============================================================ */
+@media (width < 800px) {
+    body {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    main {
+        width: min(1600px, 100% - 2rem);
+        overflow: visible;
+    }
+
+    .hero img {
+        max-height: none;
+    }
+}
+
+/* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

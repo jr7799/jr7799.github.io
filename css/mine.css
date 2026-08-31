@@ -1,0 +1,104 @@
+@charset "UTF-8";
+
+/* ---------- Design tokens ---------- */
+:root {
+    --clr-accent: rgb(51, 5, 110);
+    --clr-link: rgb(194, 194, 194);
+    --clr-link-hover: rgb(255, 255, 255);
+    --clr-icon: #7c3aed;
+    --clr-icon-hover: color-mix(in oklab, var(--clr-icon), black 30%);
+    --gap: 10px;
+    --radius: 8px;
+}
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+
+body {
+    height: 100dvh;
+    margin: 0;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    overflow: hidden;
+    font-family: system-ui, sans-serif;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+h1 { margin: 0; }
+
+/* ---------- Layout ---------- */
+main {
+    width: min(1000px, 100% - 2rem);
+    margin-inline: auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-block: 1rem;
+}
+
+footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+}
+
+.copyright {
+    font-size: large;
+    margin: 0;
+}
+
+/* ---------- Social icons ---------- */
+.icons {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 32px;
+}
+
+.icons a {
+    text-decoration: none;
+    transition: color 150ms ease;
+}
+
+.icons a:link,
+.icons a:visited {
+    color: var(--clr-icon);
+}
+
+.icons a:hover,
+.icons a:focus-visible {
+    color: var(--clr-icon-hover);
+}
+
+/* ---------- Project grid ---------- */
+#PORTFOLIO_ITEMS {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--gap);
+    padding: 13px;
+    background: radial-gradient(50% 50% at 50% 50%, #C8C7BC 0%, #6F6E66 49.48%, #3A3A35 100%);
+}
+
+.project {
+    background-color: var(--clr-accent);
+    padding: 19px;
+    text-align: center;
+    text-decoration: none;
+    border-radius: var(--radius);
+}
+
+.project:link,
+.project:visited { color: var(--clr-link); }
+
+.project:hover,
+.project:focus-visible { color: var(--clr-link-hover); }

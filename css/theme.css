@@ -1,0 +1,948 @@
+@charset "UTF-8";
+
+/* @import has to come before every rule except @charset.
+   Two fonts, both free, both loaded from CSS so no HTML changes:
+     Press Start 2P — 8-bit display face. Wide and loud, so it's only
+                      used for tiny labels, numbers and the h1.
+     VT323          — CRT terminal face. Readable at size, used for titles. */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+/* ============================================================
+   theme.css — RETRO / ARCADE THEME
+   ------------------------------------------------------------
+   Drop-in replacement for style.css. Same selectors, same
+   layout, same slideshow behaviour, zero HTML changes.
+
+   To try it, change one line in a page's <head>:
+       <link rel="stylesheet" href="css/theme.css">
+   ...and change it back to style.css to revert. Never link
+   both: the second one wins on ties.
+
+   The look, in one paragraph:
+   Square corners everywhere (--radius is 0). Chunky ink borders
+   with hard un-blurred offset shadows, so panels look stamped
+   rather than floated. Backgrounds are half-pixelated — banded
+   hard-stop gradients, a pixel guppy, a perspective floor
+   grid and CRT scanlines — while photos and body copy stay
+   crisp and readable. Hover states move up-and-LEFT into their
+   own shadow, which is how old GUI buttons behaved.
+   ============================================================ */
+
+
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+    /* Surfaces — night sky, darkest first.
+       --clr-ink is the "outline" colour: every border and every
+       hard shadow uses it, which is what holds a pixel look together. */
+    --clr-ink:         #07030f;
+    --clr-void:        #12082b;
+    --clr-bg:          #1a0f33;
+    --clr-surface:     #251646;
+    --clr-surface-hi:  #322060;
+
+    /* Arcade palette. Four hues, used deliberately and not mixed further —
+       a small fixed palette is most of what makes something read as retro. */
+    --clr-cyan:        #46e5ff;
+    --clr-magenta:     #ff3d81;
+    --clr-amber:       #ffc857;
+    --clr-lime:        #7bf1a8;
+
+    /* Semantic aliases, so the rest of the sheet doesn't name raw hues */
+    --clr-accent:      var(--clr-cyan);
+    --clr-accent-2:    var(--clr-magenta);
+    --clr-accent-3:    var(--clr-amber);
+    --clr-border:      var(--clr-ink);
+
+    /* Text */
+    --clr-text:        #f6efff;
+    --clr-text-muted:  #a892d6;
+    --clr-icon:        var(--clr-text);
+    --clr-icon-hover:  var(--clr-ink);
+
+    /* Type */
+    --font-pixel: "Press Start 2P", ui-monospace, Menlo, Consolas, monospace;
+    --font-crt:   "VT323", ui-monospace, Menlo, Consolas, monospace;
+    --font-body:  system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    /* Swap this to var(--font-crt) if you want the paragraphs in
+       terminal type too. Left as the sans by default because long
+       body copy in VT323 gets tiring to read. */
+    --font-copy:  var(--font-body);
+
+    /* Shape & rhythm. --icon-size and --icon-gap keep their old values
+       so the .icon-pair half-pitch nudge still lands on the same spot. */
+    --icon-size: 2.6rem;
+    --icon-gap:  0.5rem;
+    --gap:       1.25rem;
+    --radius:    0;         /* retro means square. Nothing is rounded. */
+    --radius-sm: 0;
+
+    /* Chunky pixel geometry */
+    --line:      3px;       /* border thickness */
+    --notch:     5px;       /* corner bite taken out of small controls */
+    --pop:       5px;       /* how far a hard shadow is offset */
+
+    /* Hard shadows — note the 0 blur radius. A blurred shadow instantly
+       breaks the illusion; these read as a second flat shape behind. */
+    --shadow:      var(--pop) var(--pop) 0 var(--clr-ink);
+    --shadow-lift: calc(var(--pop) + 4px) calc(var(--pop) + 4px) 0 var(--clr-ink);
+
+    /* Motion — all smooth. steps() was the retro-correct choice here and
+       it looked like the page was lagging, which is a worse trade than
+       the style was worth. The only stepped thing left is the blinking
+       caret after the h1, which has to snap to read as a blink.
+
+       --ease-s is kept as an alias so the rules that ask for it by name
+       still resolve; both curves are now the same. */
+    --ease:   cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-s: var(--ease);
+    --speed:  200ms;
+    --fade:   900ms;        /* slideshow crossfade — js/main.js assumes this */
+}
+
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    height: 100dvh;
+    margin: 0;
+    display: grid;
+    grid-template-rows: 1fr auto;   /* main takes the slack, footer pins */
+    overflow: hidden;
+
+    color: var(--clr-text);
+    font-family: var(--font-copy);
+    -webkit-font-smoothing: antialiased;
+
+    /* Night sky. The dither layer is the "half pixelated" part: a 4px
+       dot lattice at very low alpha, so the big smooth gradient
+       underneath breaks into texture instead of banding like plastic. */
+    background:
+        radial-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px) 0 0 / 4px 4px,
+        linear-gradient(180deg,
+            var(--clr-ink)   0%,
+            var(--clr-void) 42%,
+            var(--clr-bg)  100%);
+}
+
+/* --- pixel guppy -------------------------------------------
+   Actual pixel art, drawn as an inline SVG data URI: a 29 x 20
+   grid where every <rect> is one pixel-block. No image file, no
+   HTML change, and because it's vector it stays crisp at any size —
+   shape-rendering='crispEdges' stops the browser antialiasing the
+   block edges into mush when it scales up.
+
+   Reading the sprite, left to right: fan tail in magenta with two
+   darker rays, cyan dorsal and belly fins, amber body with a pale
+   top highlight and a darker belly, magenta spots, a cyan pectoral
+   fin, and the nerd glasses — two 5x5 ink rims sharing a bridge,
+   pale-cyan glass, a white glint and an ink pupil in each lens.
+
+   Note every colour is written %23xxxxxx, not #xxxxxx. A literal #
+   inside a data URI is read as a fragment identifier and silently
+   truncates everything after it — the single most common way this
+   technique fails.
+   ---------------------------------------------------------- */
+body::before {
+    content: "";
+    position: fixed;
+    left: 4%;
+    bottom: 11%;
+    width: min(46vmin, 380px);
+    aspect-ratio: 29 / 20;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.42;
+
+    background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 20' shape-rendering='crispEdges'><g fill='%23ff3d81'><rect x='8' y='8' width='1' height='4'/><rect x='7' y='7' width='1' height='6'/><rect x='6' y='6' width='1' height='8'/><rect x='5' y='5' width='1' height='10'/><rect x='3' y='4' width='2' height='12'/><rect x='1' y='3' width='2' height='14'/><rect x='0' y='2' width='1' height='16'/></g><g fill='%23c72a63'><rect x='3' y='5' width='1' height='10'/><rect x='6' y='7' width='1' height='6'/></g><g fill='%2346e5ff'><rect x='15' y='3' width='4' height='1'/><rect x='13' y='4' width='7' height='1'/><rect x='12' y='5' width='8' height='1'/><rect x='15' y='15' width='5' height='1'/><rect x='16' y='16' width='3' height='1'/></g><g fill='%23ffc857'><rect x='13' y='6' width='7' height='1'/><rect x='11' y='7' width='15' height='1'/><rect x='10' y='8' width='17' height='1'/><rect x='9' y='9' width='19' height='1'/><rect x='9' y='10' width='20' height='1'/><rect x='10' y='11' width='18' height='1'/><rect x='11' y='12' width='16' height='1'/><rect x='12' y='13' width='10' height='1'/><rect x='14' y='14' width='6' height='1'/></g><rect x='12' y='7' width='10' height='1' fill='%23ffe3a0'/><rect x='13' y='13' width='8' height='1' fill='%23e0a33a'/><g fill='%23ff3d81'><rect x='12' y='10' width='2' height='2'/><rect x='15' y='9' width='2' height='1'/></g><rect x='14' y='12' width='3' height='2' fill='%2346e5ff'/><g fill='%2307030f'><rect x='13' y='8' width='4' height='1'/><rect x='17' y='8' width='5' height='5'/><rect x='22' y='8' width='5' height='5'/><rect x='28' y='10' width='1' height='1'/></g><g fill='%23bfeeff'><rect x='18' y='9' width='3' height='3'/><rect x='23' y='9' width='3' height='3'/></g><g fill='%23ffffff'><rect x='18' y='9' width='1' height='1'/><rect x='23' y='9' width='1' height='1'/></g><g fill='%2307030f'><rect x='19' y='10' width='1' height='1'/><rect x='24' y='10' width='1' height='1'/></g></svg>") center / contain no-repeat;
+
+    animation: swim 24s var(--ease-s) infinite alternate;
+}
+
+/* Drifting forward and up, then back. Slow enough to read as idling
+   in place rather than going anywhere. */
+@keyframes swim {
+    from { translate: 0    1.5%; }
+    to   { translate: 5%  -3.5%; }
+}
+
+/* --- CRT overlay -------------------------------------------
+   Sits ABOVE the content (z-index 3) and takes no pointer events.
+   Three repeating gradients: horizontal scanlines, then a 4px
+   vertical + horizontal grid that reads as a pixel lattice over
+   the whole page. The inset box-shadow is the tube vignette.
+   ---------------------------------------------------------- */
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+
+    background:
+        repeating-linear-gradient(180deg,
+            rgb(0 0 0 / 0.20) 0 1px, transparent 1px 3px),
+        repeating-linear-gradient(90deg,
+            rgb(255 255 255 / 0.025) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(180deg,
+            rgb(255 255 255 / 0.025) 0 1px, transparent 1px 4px);
+
+    box-shadow: inset 0 0 170px 46px rgb(7 3 15 / 0.72);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+::selection {
+    background: var(--clr-amber);
+    color: var(--clr-ink);
+}
+
+:focus-visible {
+    outline: var(--line) solid var(--clr-amber);
+    outline-offset: 3px;
+}
+
+
+/* ============================================================
+   BACKGROUND BUBBLES
+   Populated by js/bubbles.js. Decorative only — the container is
+   aria-hidden and never takes pointer events.
+
+   z-index map for the page:
+       -1  pixel guppy    (body::before)
+        0  bubble field + floor grid
+        1  main, footer
+        3  CRT overlay    (body::after)
+   ============================================================ */
+.bubbles {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;         /* also clips the floor grid below */
+    pointer-events: none;
+}
+
+/* --- perspective floor grid --------------------------------
+   Hosted on .bubbles rather than a new element, because it's
+   decoration and .bubbles is already fixed, full-screen,
+   aria-hidden and pointer-events: none.
+
+   A flat grid rotated back on the X axis with a small perspective
+   value. mask-image fades the near edge out so it doesn't end in
+   a hard line across the middle of the page.
+   ---------------------------------------------------------- */
+.bubbles::before {
+    content: "";
+    position: absolute;
+    left: -30%;
+    right: -30%;
+    bottom: -8%;
+    height: 44%;
+
+    background:
+        repeating-linear-gradient(90deg,
+            transparent 0 76px, var(--clr-accent) 76px 78px),
+        repeating-linear-gradient(180deg,
+            transparent 0 76px, var(--clr-accent-2) 76px 78px);
+
+    transform: perspective(300px) rotateX(64deg);
+    transform-origin: bottom center;
+    opacity: 0.22;
+
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 55%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 55%);
+}
+
+/* Bubbles as sprites, not soap: hard-stop gradients so each bubble is
+   three flat tones plus an outline, the way a 16-colour sprite would be
+   drawn. The specular highlight is a square-ish dot rather than a fade. */
+.bubble {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    will-change: transform;
+
+    background:
+        radial-gradient(circle at 30% 26%,
+            rgb(255 255 255 / 0.75)  0   9%,
+            rgb(255 255 255 / 0.16)  9%  17%,
+            transparent             17% 100%),
+        radial-gradient(circle at 68% 74%,
+            rgb(70 229 255 / 0.28)   0  22%,
+            transparent             22% 100%),
+        radial-gradient(circle,
+            transparent              0  74%,
+            rgb(160 235 255 / 0.14) 74% 100%);
+
+    border: 2px solid rgb(160 235 255 / 0.28);
+    box-shadow: 0 0 0 2px rgb(70 229 255 / 0.06);
+}
+
+/* Keep the real content above the bubble field */
+main,
+footer {
+    position: relative;
+    z-index: 1;
+}
+
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+main {
+    width: min(1600px, 100% - 2rem);
+    margin-inline: auto;
+    min-height: 0;              /* lets an overflowing grid item actually scroll */
+    overflow-y: auto;
+    padding-block-end: var(--gap);
+
+    /* header · flexible middle · project strip.
+       minmax(0, 1fr) so the middle row can shrink instead of shoving
+       the strip off the bottom. That 0 minimum is only safe because
+       the hero shrinks along with the row — see .intro-split further
+       down. Left to itself the hero would keep its full height, spill
+       out the bottom of the row and land on the project strip. */
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    row-gap: clamp(1rem, 4vh, 2.5rem);
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--clr-magenta) transparent;
+}
+
+header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--gap);
+    padding-block: clamp(1rem, 3.5vh, 2rem);
+
+    /* A hard three-band rule under the header. Hard stops in the
+       gradient, so it's three flat colours, not a blend.
+       border-image with a slice of 1 replaces the border's paint. */
+    border-bottom: var(--line) solid transparent;
+    border-image: linear-gradient(90deg,
+        var(--clr-cyan)     0   33.33%,
+        var(--clr-magenta) 33.33% 66.66%,
+        var(--clr-amber)   66.66% 100%) 1;
+}
+
+h1 {
+    margin: 0;
+    font-family: var(--font-pixel);
+    /* Press Start 2P is roughly twice as wide per character as a sans,
+       so the whole clamp scale drops accordingly. */
+    font-size: clamp(0.8rem, 1.9vw, 1.45rem);
+    font-weight: 400;           /* the face has one weight; faking bold smears it */
+    line-height: 1.5;
+    letter-spacing: 0;
+    color: var(--clr-text);
+
+    /* Chromatic offset: two hard un-blurred shadows one pixel-step
+       apart. This is the misregistered-print / bad-composite-video
+       look, and it's doing most of the work on this page. */
+    text-shadow:
+        3px 3px 0 var(--clr-magenta),
+        6px 6px 0 var(--clr-accent);
+}
+
+/* Blinking block caret after the title. steps(2, end) means it snaps
+   between visible and hidden with nothing in between. */
+h1::after {
+    content: "_";
+    margin-inline-start: 0.15em;
+    color: var(--clr-amber);
+    text-shadow: none;
+    animation: blink 1.1s steps(2, end) infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+
+/* ============================================================
+   SOCIAL ICONS
+   Square controls with the corners bitten off, so they read as
+   drawn on a grid rather than as circles.
+   ============================================================ */
+.icons {
+    display: flex;
+    gap: var(--icon-gap);
+    font-size: 1rem;
+}
+
+.icons a {
+    display: grid;
+    place-items: center;
+    width: var(--icon-size);
+    aspect-ratio: 1;
+
+    background: var(--clr-surface);
+    color: var(--clr-icon);
+    text-decoration: none;
+    border: var(--line) solid var(--clr-ink);
+
+    /* clip-path clips box-shadow, so the hard shadow has to come from
+       a filter instead — drop-shadow follows the clipped silhouette. */
+    clip-path: polygon(
+        var(--notch) 0,
+        calc(100% - var(--notch)) 0,
+        100% var(--notch),
+        100% calc(100% - var(--notch)),
+        calc(100% - var(--notch)) 100%,
+        var(--notch) 100%,
+        0 calc(100% - var(--notch)),
+        0 var(--notch));
+    filter: drop-shadow(3px 3px 0 var(--clr-ink));
+
+    transition:
+        background var(--speed) var(--ease),
+        color      var(--speed) var(--ease),
+        translate  var(--speed) var(--ease),
+        filter     var(--speed) var(--ease);
+}
+
+/* Old GUI buttons moved up and to the LEFT, away from their shadow,
+   and the shadow grew. Moving down would read as "pressed". */
+.icons a:hover,
+.icons a:focus-visible {
+    background: var(--clr-amber);
+    color: var(--clr-icon-hover);
+    translate: -2px -2px;
+    filter: drop-shadow(6px 6px 0 var(--clr-ink));
+}
+
+
+/* ============================================================
+   HERO / SLIDESHOW
+   ============================================================ */
+.hero {
+    /* centred in the flexible middle row */
+    align-self: center;
+    justify-self: center;
+    width: min(760px, 100%);
+
+    /* Doubles the gap down to the project strip; because the hero is
+       centred, that bottom margin also lifts it up the page. */
+    margin: 0 0 clamp(1rem, 4vh, 2.5rem);
+
+    display: grid;
+    overflow: hidden;
+    isolation: isolate;
+
+    /* .project is position: relative, and positioned elements paint
+       after unpositioned ones no matter what order they're in. Without
+       this the hero — and its 10px magenta shadow — went under the
+       cards wherever the two came close. */
+    position: relative;
+    z-index: 1;
+
+    border: var(--line) solid var(--clr-ink);
+    background: var(--clr-surface);
+    /* Two stacked hard shadows in two hues — a cheap way to suggest
+       colour fringing without a filter. */
+    box-shadow:
+        var(--pop) var(--pop) 0 var(--clr-ink),
+        calc(var(--pop) * 2) calc(var(--pop) * 2) 0 var(--clr-magenta);
+
+    animation: rise 560ms var(--ease) backwards;
+}
+
+/* Every slide occupies the same grid cell, so they stack and the
+   container sizes to the tallest. */
+.hero .slide {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+
+    /* Opaque on purpose. The arriving slide has to hide the caption of
+       the one underneath — text can't occlude text, so the slide's own
+       background does it. Do not give this alpha. */
+    background: var(--clr-surface);
+
+    opacity: 0;
+    z-index: 0;
+    pointer-events: none;
+
+    /* Leaving: hold full opacity underneath, then vanish the instant
+       the incoming slide has finished covering us. No mid-fade dip
+       where both sit at 50% and the background shows through. */
+    transition: opacity 0s var(--fade);
+}
+
+.hero .slide.is-active {
+    opacity: 1;
+    z-index: 1;
+    pointer-events: auto;
+
+    /* Arriving: the visible crossfade. Deliberately smooth, not
+       stepped — stepping this one would strobe the caption. */
+    transition: opacity var(--fade) var(--ease-s);
+}
+
+.hero img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 48dvh;
+    object-fit: cover;
+
+    /* Pushed slightly toward a limited palette: crushed blacks, high
+       contrast, a touch cool. Stops short of actually posterising —
+       the screenshots still need to be legible. */
+    filter: contrast(1.12) saturate(1.05) brightness(0.98);
+}
+
+.hero figcaption {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.85rem 1.1rem 1rem;
+
+    font-family: var(--font-crt);
+    font-size: 1.7rem;          /* VT323 runs small; it needs the size */
+    line-height: 1.1;
+    color: var(--clr-text);
+
+    border-top: var(--line) solid var(--clr-ink);
+    background: var(--clr-surface-hi);
+}
+
+.hero figcaption span {
+    order: -1;                  /* year above the title, not below */
+    font-family: var(--font-pixel);
+    font-size: 0.55rem;
+    line-height: 1.6;
+    letter-spacing: 0.06em;
+    color: var(--clr-amber);
+}
+
+
+/* ============================================================
+   STACKED PAGES  (about + each project page)
+   Text on top, slideshow filling the space below.
+   Flex rather than grid so the number of blocks between the
+   header and the hero doesn't matter.
+   ============================================================ */
+.page-stack main {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(1rem, 4vh, 2.5rem);
+}
+
+/* auto margins soak up the leftover space above and below */
+.page-stack .hero {
+    margin-block: auto;
+}
+
+/* A row of icons in the page body rather than the header */
+.icons-center {
+    justify-content: center;
+}
+
+/* Two icon groups either side of a centred gap.
+   Equal 1fr columns put the column boundary exactly at the page's
+   midpoint, so the GAP is centred rather than the icons — the groups
+   can hold different numbers of buttons and the centre line holds. */
+.icon-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(2rem, 8vw, 6rem);
+    align-items: center;
+}
+
+.icon-pair > :first-child { justify-self: end; }
+
+/* Nudge the right-hand group half a button-pitch further right, so its
+   buttons fall between the rhythm of the group opposite instead of
+   lining up with it. */
+.icon-pair > :last-child {
+    justify-self: start;
+    transform: translateX(calc((var(--icon-size) + var(--icon-gap)) / 2));
+}
+
+/* Too tight for two groups side by side — stack and centre them. */
+@media (width < 560px) {
+    .icon-pair {
+        grid-template-columns: 1fr;
+        row-gap: 1rem;
+    }
+
+    .icon-pair > :first-child,
+    .icon-pair > :last-child {
+        justify-self: center;
+        transform: none;
+    }
+}
+
+.about-intro {
+    max-width: 156ch;
+    margin: 0 auto;
+    text-align: center;
+    font-size: clamp(1rem, 1.5vw, 1.1rem);
+    line-height: 1.8;
+    color: var(--clr-text-muted);
+    text-wrap: pretty;          /* stops a lone word on the last line */
+}
+
+/* First line brighter — typeset rather than pasted */
+.about-intro::first-line { color: var(--clr-text); }
+
+
+/* ============================================================
+   INDEX ONLY — hero and blurb as a centred pair
+   Everything here hangs off .intro-split / .home-blurb, which only
+   exist on index.html, so no other page is affected.
+   ============================================================ */
+.intro-split {
+    /* Cap and centre the PAIR rather than letting each half stretch
+       across the full 1600px main — that's what reads as shoved left. */
+    width: min(1240px, 100%);
+    margin-inline: auto;
+
+    display: grid;
+    /* minmax(0, …) on both tracks: a track's default minimum is
+       min-content, and the hero holds an image — without the 0 floor
+       the image's intrinsic width takes more than its share and
+       squashes the text column. */
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    gap: clamp(1.5rem, 4vw, 3rem);
+    align-items: center;
+
+    /* A grid item's automatic minimum is its min-content size, which
+       would stop this being squeezed by main's middle row. Zeroing it
+       is the first of four links in the chain that lets the hero give
+       up height: .intro-split → .hero → .slide → img. Miss any one and
+       the whole thing refuses to shrink. */
+    min-height: 0;
+}
+
+/* The hero centres itself and caps at 760px on single-column pages.
+   Inside the pair it just fills its own column instead. */
+.intro-split .hero {
+    width: 100%;
+    margin: 0;
+
+    /* Never taller than the row it was given, and allowed to be
+       shorter. Together these mean index never scrolls: whatever
+       height is left after the header and the project strip have
+       taken theirs is exactly what the hero gets. */
+    max-height: 100%;
+    min-height: 0;
+}
+
+.intro-split .slide { min-height: 0; }
+
+.intro-split .hero img {
+    /* aspect-ratio still sets the height it WANTS. flex-shrink lets a
+       short viewport take that height back, and min-height: 0 is what
+       makes the shrink legal — a flex item won't go below its
+       min-content size without it. object-fit: cover (inherited from
+       .hero img) crops rather than distorting as it compresses. */
+    flex: 1 1 auto;
+    min-height: 0;
+
+    /* Down from 48dvh. The flex-shrink above is the guarantee against
+       scrolling; this is just so the image doesn't balloon on a tall
+       monitor where there's slack to spare. */
+    max-height: 42dvh;
+}
+
+.home-blurb {
+    margin: 0;
+    font-size: clamp(1rem, 1.5vw, 1.1rem);
+    line-height: 1.8;
+    color: var(--clr-text-muted);
+    text-wrap: pretty;
+
+    /* Three flat colour bands down the inside edge — same hard-stop
+       trick as the header rule, rotated. */
+    padding-inline-start: clamp(1rem, 2vw, 1.4rem);
+    border-inline-start: var(--line) solid transparent;
+    border-image: linear-gradient(180deg,
+        var(--clr-cyan)     0   33.33%,
+        var(--clr-magenta) 33.33% 66.66%,
+        var(--clr-amber)   66.66% 100%) 1;
+}
+
+.home-blurb::first-line { color: var(--clr-text); }
+
+/* Too narrow for two columns — stack them and centre the text. */
+@media (width < 900px) {
+    .intro-split {
+        grid-template-columns: 1fr;
+    }
+
+    .home-blurb {
+        max-width: 60ch;
+        margin-inline: auto;
+        text-align: center;
+
+        /* A centred paragraph with a rule down one side looks broken */
+        padding-inline-start: 0;
+        border-inline-start: none;
+    }
+}
+
+
+/* ============================================================
+   PROJECT GRID — arcade cabinet select screen
+   ============================================================ */
+#PORTFOLIO_ITEMS {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--gap);
+
+    /* Numbers the cards without touching the HTML — see .project::before */
+    counter-reset: project;
+}
+
+/* Five across is only sensible on a wide screen — step down from there */
+@media (width < 1000px) {
+    #PORTFOLIO_ITEMS { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (width < 640px) {
+    #PORTFOLIO_ITEMS { grid-template-columns: repeat(2, 1fr); }
+}
+
+.project {
+    position: relative;         /* anchors ::before and ::after */
+    counter-increment: project;
+
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    isolation: isolate;         /* keeps the sweep's z-index local to the card */
+
+    border: var(--line) solid var(--clr-ink);
+    background: var(--clr-surface);
+    box-shadow: var(--shadow);
+    text-decoration: none;
+    color: var(--clr-text);
+
+    transition:
+        translate  var(--speed) var(--ease),
+        box-shadow var(--speed) var(--ease),
+        background var(--speed) var(--ease);
+
+    /* Entrance — stagger delays further down */
+    animation: rise 560ms var(--ease) backwards;
+}
+
+/* Up and to the left, out of its own shadow, which grows to match.
+   translate (the standalone property) rather than transform, so it
+   can't collide with anything else that wants transform. */
+.project:hover,
+.project:focus-visible {
+    translate: -3px -3px;
+    background: var(--clr-surface-hi);
+    box-shadow:
+        var(--shadow-lift),
+        0 0 0 var(--line) var(--clr-amber);
+}
+
+/* --- cabinet number ----------------------------------------
+   content: counter(...) reads the card's index straight out of the
+   counter set up on #PORTFOLIO_ITEMS. Add or reorder cards in the
+   HTML and the numbering follows, with nothing to maintain.
+   ---------------------------------------------------------- */
+.project::before {
+    content: counter(project, decimal-leading-zero);
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+
+    padding: 0.4rem 0.5rem 0.35rem;
+    background: var(--clr-amber);
+    color: var(--clr-ink);
+    border-right: var(--line) solid var(--clr-ink);
+    border-bottom: var(--line) solid var(--clr-ink);
+
+    font-family: var(--font-pixel);
+    font-size: 0.55rem;
+    line-height: 1;
+
+    transition: background var(--speed) var(--ease);
+}
+
+.project:hover::before,
+.project:focus-visible::before {
+    background: var(--clr-cyan);
+}
+
+/* --- light wipe --------------------------------------------
+   A hard-edged band parked off the left edge that crosses the card
+   on hover. The band's own edges are hard (hard colour stops in the
+   gradient), which keeps it reading as a scanning wipe rather than a
+   gloss shine — the travel itself is smooth.
+   ---------------------------------------------------------- */
+.project::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+
+    background: linear-gradient(100deg,
+        transparent              44%,
+        rgb(70 229 255 / 0.20)  44%,
+        rgb(255 255 255 / 0.22) 50%,
+        rgb(255 61 129 / 0.20)  56%,
+        transparent              56%);
+
+    translate: -130% 0;
+    transition: translate 620ms var(--ease);
+}
+
+.project:hover::after,
+.project:focus-visible::after {
+    translate: 130% 0;
+}
+
+.project img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 42dvh;
+    object-fit: cover;
+
+    /* Held back at rest so the strip reads as a calm set of thumbnails,
+       with contrast pushed so it looks like a limited palette rather
+       than just a dimmed photo. */
+    filter: saturate(0.55) brightness(0.7) contrast(1.25);
+    transition: filter var(--speed) var(--ease);
+}
+
+.project:hover img,
+.project:focus-visible img {
+    filter: saturate(1.1) brightness(1) contrast(1.05);
+}
+
+.project h2 {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.7rem 0.8rem 0.8rem;
+
+    font-family: var(--font-crt);
+    font-size: 1.4rem;
+    font-weight: 400;
+    line-height: 1.05;
+    text-wrap: balance;         /* spreads a wrapping title over even lines */
+
+    border-top: var(--line) solid var(--clr-ink);
+    background: var(--clr-surface-hi);
+}
+
+.project h2 span {
+    order: -1;                  /* year above the title */
+    font-family: var(--font-pixel);
+    font-size: 0.5rem;
+    line-height: 1.6;
+    letter-spacing: 0.06em;
+    color: var(--clr-amber);
+}
+
+/* Staggered entrance — short travel, smooth curve. */
+@keyframes rise {
+    from { opacity: 0; translate: 0 12px; }
+    to   { opacity: 1; translate: 0 0; }
+}
+
+.project:nth-child(1) { animation-delay:  60ms; }
+.project:nth-child(2) { animation-delay: 130ms; }
+.project:nth-child(3) { animation-delay: 200ms; }
+.project:nth-child(4) { animation-delay: 270ms; }
+.project:nth-child(5) { animation-delay: 340ms; }
+.project:nth-child(6) { animation-delay: 410ms; }
+
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    margin-block-start: var(--gap);
+
+    background: var(--clr-ink);
+    border-top: var(--line) solid transparent;
+    border-image: linear-gradient(90deg,
+        var(--clr-cyan)     0   33.33%,
+        var(--clr-magenta) 33.33% 66.66%,
+        var(--clr-amber)   66.66% 100%) 1;
+}
+
+.copyright {
+    margin: 0;
+    font-family: var(--font-pixel);
+    font-size: 0.5rem;
+    line-height: 1.8;
+    letter-spacing: 0.08em;
+    color: var(--clr-text-muted);
+}
+
+
+/* ============================================================
+   NARROW SCREENS
+   The fixed-viewport, no-scroll shell only makes sense when
+   there's room for it. Below this, let the page scroll normally.
+   ============================================================ */
+@media (width < 800px) {
+    body {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+    }
+
+    main {
+        overflow: visible;
+    }
+
+    .hero img {
+        max-height: none;
+    }
+
+    /* The chromatic offset on the h1 is 6px deep — too much next to
+       small type on a phone. Halve it. */
+    h1 {
+        text-shadow:
+            2px 2px 0 var(--clr-magenta),
+            4px 4px 0 var(--clr-accent);
+    }
+}
+
+
+/* ============================================================
+   ACCESSIBILITY
+   Kills the guppy's drift, the blinking caret, the card wipe and every
+   entrance animation for anyone who's asked the OS for less motion.
+   js/bubbles.js checks the same query in JS.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    body::before  { animation: none; }
+    h1::after     { animation: none; }
+    .project::after { display: none; }
+}
