@@ -71,10 +71,10 @@
        body copy in VT323 gets tiring to read. */
     --font-copy:  var(--font-body);
 
-    /* Shape & rhythm. --icon-size and --icon-gap keep their old values
-       so the .icon-pair half-pitch nudge still lands on the same spot. */
-    --icon-size: 2.6rem;
-    --icon-gap:  0.5rem;
+    /* Shape & rhythm. The .icon-pair half-pitch nudge is derived from
+       these two, so it follows any change to them. */
+    --icon-size: 3.75rem;
+    --icon-gap:  0.75rem;
     --gap:       1.25rem;
     --radius:    0;         /* retro means square. Nothing is rounded. */
     --radius-sm: 0;
@@ -380,7 +380,7 @@ h1::after {
 .icons {
     display: flex;
     gap: var(--icon-gap);
-    font-size: 1rem;
+    font-size: 1.5rem;
 }
 
 .icons a {
@@ -588,7 +588,7 @@ h1::after {
 }
 
 .about-intro {
-    max-width: 156ch;
+    max-width: 96ch;
     margin: 0 auto;
     text-align: center;
     font-size: clamp(1rem, 1.5vw, 1.1rem);
